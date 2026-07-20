@@ -16,13 +16,16 @@ const icons = {
 export function ToastProvider({ children }) {
   const [toasts, setToasts] = React.useState([]);
 
-  const addToast = React.useCallback(({ title, description, type = "info", duration = 4000 }) => {
-    const id = Math.random().toString(36).slice(2);
-    setToasts((prev) => [...prev, { id, title, description, type }]);
-    setTimeout(() => {
-      setToasts((prev) => prev.filter((t) => t.id !== id));
-    }, duration);
-  }, []);
+  const addToast = React.useCallback(
+    ({ title, description, type = "info", duration = 4000 }) => {
+      const id = Math.random().toString(36).slice(2);
+      setToasts((prev) => [...prev, { id, title, description, type }]);
+      setTimeout(() => {
+        setToasts((prev) => prev.filter((t) => t.id !== id));
+      }, duration);
+    },
+    []
+  );
 
   const removeToast = React.useCallback((id) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
@@ -31,17 +34,15 @@ export function ToastProvider({ children }) {
   return (
     <ToastContext.Provider value={{ toast: addToast }}>
       {children}
-      <div className="fixed bottom-4 right-4 z-[100] flex flex-col gap-2 w-80">
+      <div className="fixed bottom-4 right-4 z-[200] flex flex-col gap-2 w-80 pointer-events-none">
         {toasts.map((t) => (
           <div
             key={t.id}
-            className={cn(
-              "flex items-start gap-3 rounded-2xl bg-card p-4 shadow-lg ring-1 ring-foreground/5 animate-in slide-in-from-right-4 fade-in-0"
-            )}
+            className="pointer-events-auto flex items-start gap-3 rounded-2xl bg-white border border-border p-4 shadow-lg animate-in slide-in-from-right-4 fade-in-0"
           >
             <div className="shrink-0 mt-0.5">{icons[t.type]}</div>
             <div className="flex-1 min-w-0">
-              {t.title && <p className="text-sm font-medium">{t.title}</p>}
+              {t.title && <p className="text-sm font-semibold text-foreground">{t.title}</p>}
               {t.description && (
                 <p className="text-xs text-muted-foreground mt-0.5">{t.description}</p>
               )}
