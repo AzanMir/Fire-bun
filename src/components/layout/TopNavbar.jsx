@@ -8,6 +8,7 @@ import { getInitials } from "@/lib/utils";
 import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent,
   DropdownMenuItem, DropdownMenuSeparator, DropdownMenuLabel,
+  DropdownMenuGroup,
 } from "@/components/ui/dropdown-menu";
 import { LogOut, UserCircle, Menu } from "lucide-react";
 import Link from "next/link";
@@ -37,13 +38,15 @@ export default function TopNavbar({ title, profileHref = "/admin/profile" }) {
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-48">
-          <DropdownMenuLabel className="text-xs truncate">{user?.email}</DropdownMenuLabel>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem asChild>
-            <Link href={profileHref} className="cursor-pointer">
-              <UserCircle className="size-4 mr-2" /> Profile
-            </Link>
-          </DropdownMenuItem>
+          <DropdownMenuGroup>
+            <DropdownMenuLabel className="text-xs truncate">{user?.email}</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem asChild>
+              <Link href={profileHref} className="cursor-pointer">
+                <UserCircle className="size-4 mr-2" /> Profile
+              </Link>
+            </DropdownMenuItem>
+          </DropdownMenuGroup>
           <DropdownMenuSeparator />
           <DropdownMenuItem variant="destructive" onClick={logout} className="cursor-pointer">
             <LogOut className="size-4 mr-2" /> Logout

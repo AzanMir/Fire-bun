@@ -139,10 +139,21 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Handle new user profile creation
+--
+-- SECURITY DEFINER switches the *role* but NOT the search_path. GoTrue inserts
+-- into auth.users as `supabase_auth_admin`, whose search_path does not
+-- necessarily include `public` -- an unqualified `profiles` then fails with
+-- "relation profiles does not exist", which GoTrue surfaces to the client as
+-- a 500 "Database error saving new user". Hence the explicit search_path and
+-- the fully-qualified table name.
 CREATE OR REPLACE FUNCTION handle_new_user()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
 BEGIN
-  INSERT INTO profiles (id, email, full_name, role)
+  INSERT INTO public.profiles (id, email, full_name, role)
   VALUES (
     NEW.id,
     NEW.email,
@@ -152,4 +163,4 @@ BEGIN
   ON CONFLICT (id) DO NOTHING;
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$;
