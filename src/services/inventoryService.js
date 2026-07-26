@@ -19,7 +19,6 @@ export async function getLowStockIngredients() {
   const { data, error } = await supabase
     .from("ingredients")
     .select("*, supplier:suppliers(id,name)")
-    .lte("current_stock", supabase.raw ? undefined : undefined)
     .eq("is_active", true)
     .order("name");
   if (error) throw error;
