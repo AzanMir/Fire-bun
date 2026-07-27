@@ -139,7 +139,7 @@ export default function CategoriesPage() {
       </Card>
 
       <Card>
-        <CardContent className="p-0">
+        <CardContent className="p-0 overflow-x-auto">
           {paged.length === 0 ? (
             <EmptyState title="No categories found" description="Create your first category to organise your menu." className="py-16">
               <Button onClick={openCreate} variant="outline"><Plus className="size-4 mr-1" /> Add Category</Button>

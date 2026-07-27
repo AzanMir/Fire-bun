@@ -119,7 +119,7 @@ export default function SuppliersPage() {
         <SearchBar value={search} onChange={(v) => { setSearch(v); setPage(1); }} placeholder="Search suppliers..." className="max-w-sm" />
       </CardContent></Card>
 
-      <Card><CardContent className="p-0">
+      <Card><CardContent className="p-0 overflow-x-auto">
         {paged.length === 0 ? (
           <EmptyState title="No suppliers found">
             <Button variant="outline" onClick={openCreate}><Plus className="size-4 mr-1" /> Add Supplier</Button>

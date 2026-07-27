@@ -101,7 +101,7 @@ export default function SettingsPage() {
 
         <Card>
           <CardHeader><CardTitle className="text-base">Billing & Tax</CardTitle></CardHeader>
-          <CardContent className="grid grid-cols-2 gap-3">
+          <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label>Currency Symbol</Label>
               <Input value={form.currency} onChange={(e) => set("currency", e.target.value)} placeholder="Rs." maxLength={5} />
@@ -115,7 +115,7 @@ export default function SettingsPage() {
 
         <Card>
           <CardHeader><CardTitle className="text-base">Opening Hours</CardTitle></CardHeader>
-          <CardContent className="grid grid-cols-2 gap-3">
+          <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label>Opening Time</Label>
               <Input type="time" value={form.opening_time} onChange={(e) => set("opening_time", e.target.value)} />

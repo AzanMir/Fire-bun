@@ -17,7 +17,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
   Search, Plus, Minus, Trash2, ShoppingCart, Printer,
-  CreditCard, Banknote, Smartphone, RefreshCw,
+  CreditCard, Banknote, Smartphone, RefreshCw, X,
 } from "lucide-react";
 import useMenu from "@/hooks/useMenu";
 import useCategories from "@/hooks/useCategories";
@@ -70,7 +70,11 @@ function POSInner({ categories, menuItems, onDone }) {
   const { toast } = useToast();
   const { user } = useAuth();
   const { settings } = useSettings();
-  const { items: cart, addItem, increase, decrease, removeItem, clearCart, subtotal, totalItems, discount, setDiscount } = useCart();
+  const {
+    items: cart, addItem, increase, decrease, removeItem,
+    clearCart, subtotal, totalItems, discount, setDiscount,
+  } = useCart();
+
   const [search, setSearch] = useState("");
   const [activeCat, setActiveCat] = useState("all");
   const [customerName, setCustomerName] = useState("");
@@ -81,6 +85,7 @@ function POSInner({ categories, menuItems, onDone }) {
   const [placing, setPlacing] = useState(false);
   const [receiptOrder, setReceiptOrder] = useState(null);
   const [receiptOpen, setReceiptOpen] = useState(false);
+  const [cartOpen, setCartOpen] = useState(false);
   const receiptRef = useRef(null);
   const handlePrint = useReactToPrint({ contentRef: receiptRef });
 
@@ -100,11 +105,17 @@ function POSInner({ categories, menuItems, onDone }) {
     if (!cart.length) { toast({ title: "Cart is empty", type: "error" }); return; }
     setPlacing(true);
     try {
-      const order = await createOrder({ customerName, phone, paymentMethod, paymentDetails: { provider: paymentProvider, reference: paymentReference }, items: cart, subtotal, discount: discountAmt, tax: taxAmt, total, servedBy: user?.id });
+      const order = await createOrder({
+        customerName, phone, paymentMethod,
+        paymentDetails: { provider: paymentProvider, reference: paymentReference },
+        items: cart, subtotal, discount: discountAmt, tax: taxAmt, total, servedBy: user?.id,
+      });
       const fullOrder = { ...order, order_items: cart.map((i) => ({ name: i.name, quantity: i.quantity, subtotal: i.price * i.quantity })) };
       setReceiptOrder(fullOrder);
       setReceiptOpen(true);
-      clearCart(); setCustomerName(""); setPhone(""); setPaymentProvider(""); setPaymentReference(""); setDiscount(0);
+      setCartOpen(false);
+      clearCart();
+      setCustomerName(""); setPhone(""); setPaymentProvider(""); setPaymentReference(""); setDiscount(0);
       toast({ title: "Order placed!", description: order.receipt_number, type: "success" });
       onDone?.();
     } catch (e) {
@@ -117,12 +128,39 @@ function POSInner({ categories, menuItems, onDone }) {
   const payIcons = { Cash: Banknote, Card: CreditCard, Online: Smartphone };
 
   return (
-    <div className="flex gap-4 h-[calc(100vh-8rem)]">
+    <div className="flex gap-4 h-[calc(100vh-8rem)] relative">
+      {/* ── Mobile cart overlay ─────────────────────────────── */}
+      {cartOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/50 lg:hidden"
+          onClick={() => setCartOpen(false)}
+        />
+      )}
+
+      {/* Left — Menu */}
       <div className="flex flex-1 flex-col gap-3 min-w-0">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-          <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search menu..." className="pl-9" />
+        {/* Search + mobile cart toggle */}
+        <div className="flex gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+            <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search menu..." className="pl-9" />
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            className="lg:hidden shrink-0 relative"
+            onClick={() => setCartOpen(true)}
+          >
+            <ShoppingCart className="size-4" />
+            {totalItems > 0 && (
+              <span className="absolute -top-1.5 -right-1.5 flex size-4 items-center justify-center rounded-full bg-orange-500 text-white text-[10px] font-bold">
+                {totalItems}
+              </span>
+            )}
+          </Button>
         </div>
+
+        {/* Category filters */}
         <ScrollArea className="w-full">
           <div className="flex gap-2 pb-1 flex-wrap">
             <Button size="sm" variant={activeCat === "all" ? "default" : "outline"} className={activeCat === "all" ? "bg-orange-500 hover:bg-orange-600" : ""} onClick={() => setActiveCat("all")}>All</Button>
@@ -131,12 +169,21 @@ function POSInner({ categories, menuItems, onDone }) {
             ))}
           </div>
         </ScrollArea>
+
+        {/* Menu grid */}
         <ScrollArea className="flex-1">
           {filtered.length === 0 ? <EmptyState title="No items" className="py-10" /> : (
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pb-2">
               {filtered.map((item) => (
-                <button key={item.id} onClick={() => addItem(item)} className="flex flex-col items-start rounded-2xl border bg-card p-3 text-left hover:border-orange-300 hover:bg-orange-50 transition active:scale-95">
-                  {item.image_url ? <img src={item.image_url} alt={item.name} className="w-full h-24 object-cover rounded-xl mb-2" /> : <div className="flex w-full h-24 items-center justify-center rounded-xl bg-muted mb-2 text-2xl">🍽️</div>}
+                <button
+                  key={item.id}
+                  onClick={() => addItem(item)}
+                  className="flex flex-col items-start rounded-2xl border bg-card p-3 text-left hover:border-orange-300 hover:bg-orange-50 transition active:scale-95 focus:outline-none focus:ring-2 focus:ring-orange-400"
+                >
+                  {item.image_url
+                    ? <img src={item.image_url} alt={item.name} className="w-full h-24 object-cover rounded-xl mb-2" />
+                    : <div className="flex w-full h-24 items-center justify-center rounded-xl bg-muted mb-2 text-2xl">🍽️</div>
+                  }
                   <p className="text-xs font-semibold line-clamp-2">{item.name}</p>
                   <p className="text-orange-600 font-bold text-sm mt-0.5">{formatCurrency(item.price)}</p>
                 </button>
@@ -146,19 +193,37 @@ function POSInner({ categories, menuItems, onDone }) {
         </ScrollArea>
       </div>
 
-      <Card className="w-72 shrink-0 flex flex-col h-full overflow-hidden">
+      {/* Right — Cart (slide-over on mobile, static on desktop) */}
+      <Card className={`
+        fixed inset-y-0 right-0 z-50 w-80 shrink-0 flex flex-col overflow-hidden transition-transform duration-300 rounded-none
+        lg:static lg:inset-auto lg:z-auto lg:rounded-xl lg:translate-x-0 lg:h-full lg:w-72
+        ${cartOpen ? "translate-x-0" : "translate-x-full"}
+      `}>
         <CardHeader className="pb-2 shrink-0">
           <CardTitle className="flex items-center gap-2 text-sm">
-            <ShoppingCart className="size-4" /> Cart {totalItems > 0 && <Badge className="bg-orange-500 ml-auto">{totalItems}</Badge>}
+            <ShoppingCart className="size-4" />
+            Cart
+            {totalItems > 0 && <Badge className="bg-orange-500 ml-auto">{totalItems}</Badge>}
+            <button
+              onClick={() => setCartOpen(false)}
+              className="ml-auto lg:hidden text-muted-foreground hover:text-foreground"
+              aria-label="Close cart"
+            >
+              <X className="size-4" />
+            </button>
           </CardTitle>
           <div className="grid grid-cols-2 gap-1.5 pt-1">
             <Input value={customerName} onChange={(e) => setCustomerName(e.target.value)} placeholder="Name" className="h-7 text-xs" />
             <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Phone" className="h-7 text-xs" />
           </div>
         </CardHeader>
+
         <ScrollArea className="flex-1 px-3">
           {!cart.length ? (
-            <div className="flex flex-col items-center py-10 text-muted-foreground"><ShoppingCart className="size-8 opacity-20 mb-2" /><p className="text-xs">Empty cart</p></div>
+            <div className="flex flex-col items-center py-10 text-muted-foreground">
+              <ShoppingCart className="size-8 opacity-20 mb-2" />
+              <p className="text-xs">Empty cart</p>
+            </div>
           ) : (
             <div className="space-y-1.5 pb-2">
               {cart.map((item) => (
@@ -176,6 +241,7 @@ function POSInner({ categories, menuItems, onDone }) {
             </div>
           )}
         </ScrollArea>
+
         <div className="px-3 pb-3 pt-2 shrink-0 border-t space-y-2">
           <div className="flex items-center gap-2">
             <Label className="text-xs w-14 shrink-0">Discount</Label>
@@ -187,23 +253,45 @@ function POSInner({ categories, menuItems, onDone }) {
             <div className="flex justify-between text-muted-foreground"><span>Tax ({taxRate}%)</span><span>{formatCurrency(taxAmt)}</span></div>
             <div className="flex justify-between font-bold text-sm pt-1 border-t"><span>Total</span><span className="text-orange-600">{formatCurrency(total)}</span></div>
           </div>
+
           <div className="flex gap-1">
-            {PAYMENT_METHODS.map((m) => { const I = payIcons[m]; return (
-              <button key={m} onClick={() => setPaymentMethod(m)} className={`flex-1 flex flex-col items-center gap-0.5 rounded-xl border py-1 text-xs transition ${paymentMethod === m ? "border-orange-500 bg-orange-50 text-orange-700" : "hover:bg-muted"}`}>
-                <I className="size-3" />{m}
-              </button>
-            ); })}
+            {PAYMENT_METHODS.map((m) => {
+              const I = payIcons[m];
+              return (
+                <button
+                  key={m}
+                  onClick={() => setPaymentMethod(m)}
+                  className={`flex-1 flex flex-col items-center gap-0.5 rounded-xl border py-1 text-xs transition ${paymentMethod === m ? "border-orange-500 bg-orange-50 text-orange-700" : "hover:bg-muted"}`}
+                >
+                  <I className="size-3" />{m}
+                </button>
+              );
+            })}
           </div>
+
           {paymentMethod !== "Cash" && (
             <div className="space-y-2 rounded-xl border border-orange-200 bg-orange-50/60 p-2.5">
               <p className="text-xs font-medium text-orange-800">
                 {paymentMethod === "Card" ? "Card verification" : "Online payment verification"}
               </p>
-              <Input value={paymentProvider} onChange={(e) => setPaymentProvider(e.target.value)} placeholder={paymentMethod === "Card" ? "Cardholder name" : "Bank or wallet (e.g. JazzCash)"} />
-              <Input value={paymentReference} onChange={(e) => setPaymentReference(e.target.value)} placeholder={paymentMethod === "Card" ? "Last 4 card digits" : "Transaction reference"} inputMode={paymentMethod === "Card" ? "numeric" : "text"} maxLength={paymentMethod === "Card" ? 4 : undefined} />
-              {paymentMethod === "Card" && <p className="text-[11px] text-muted-foreground">Only the last four card digits are stored.</p>}
+              <Input
+                value={paymentProvider}
+                onChange={(e) => setPaymentProvider(e.target.value)}
+                placeholder={paymentMethod === "Card" ? "Cardholder name" : "Bank or wallet (e.g. JazzCash)"}
+              />
+              <Input
+                value={paymentReference}
+                onChange={(e) => setPaymentReference(e.target.value)}
+                placeholder={paymentMethod === "Card" ? "Last 4 card digits" : "Transaction reference"}
+                inputMode={paymentMethod === "Card" ? "numeric" : "text"}
+                maxLength={paymentMethod === "Card" ? 4 : undefined}
+              />
+              {paymentMethod === "Card" && (
+                <p className="text-[11px] text-muted-foreground">Only the last four card digits are stored.</p>
+              )}
             </div>
           )}
+
           <Button onClick={place} disabled={placing || !cart.length} className="w-full bg-orange-500 hover:bg-orange-600 text-sm h-8">
             {placing ? "Placing..." : `Place · ${formatCurrency(total)}`}
           </Button>
@@ -214,7 +302,9 @@ function POSInner({ categories, menuItems, onDone }) {
         <DialogContent className="max-w-sm">
           <DialogHeader><DialogTitle>Order Placed</DialogTitle></DialogHeader>
           <Receipt order={receiptOrder} settings={settings} ref={receiptRef} />
-          <Button onClick={() => handlePrint()} className="w-full bg-orange-500 hover:bg-orange-600"><Printer className="size-4 mr-2" /> Print Receipt</Button>
+          <Button onClick={() => handlePrint()} className="w-full bg-orange-500 hover:bg-orange-600">
+            <Printer className="size-4 mr-2" /> Print Receipt
+          </Button>
         </DialogContent>
       </Dialog>
     </div>
@@ -227,44 +317,67 @@ function OrdersList() {
   const { orders, loading, refresh } = useOrders({ status: statusFilter, limit: 30 });
 
   async function handleStatus(id, status) {
-    try { await updateOrderStatus(id, status); toast({ title: "Updated", type: "success" }); refresh(); }
-    catch (e) { toast({ title: "Error", description: e.message, type: "error" }); }
+    try {
+      await updateOrderStatus(id, status);
+      toast({ title: "Updated", type: "success" });
+      refresh();
+    } catch (e) {
+      toast({ title: "Error", description: e.message, type: "error" });
+    }
   }
 
   if (loading) return <Loader />;
+
   return (
     <div className="space-y-3">
       <div className="flex gap-2 items-center">
         <Select value={statusFilter} onValueChange={setStatusFilter}>
           <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
-          <SelectContent><SelectItem value="All">All</SelectItem>{ORDER_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+          <SelectContent>
+            <SelectItem value="All">All</SelectItem>
+            {ORDER_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+          </SelectContent>
         </Select>
         <Button variant="outline" size="sm" onClick={refresh}><RefreshCw className="size-4 mr-1" />Refresh</Button>
       </div>
-      <Card><CardContent className="p-0">
-        {orders.length === 0 ? <EmptyState title="No orders" className="py-10" /> : (
-          <Table>
-            <TableHeader><TableRow><TableHead>Receipt</TableHead><TableHead>Customer</TableHead><TableHead>Total</TableHead><TableHead>Payment</TableHead><TableHead>Status</TableHead><TableHead>Time</TableHead></TableRow></TableHeader>
-            <TableBody>
-              {orders.map((o) => (
-                <TableRow key={o.id}>
-                  <TableCell className="font-mono text-xs">{o.receipt_number}</TableCell>
-                  <TableCell className="text-sm">{o.customer_name}</TableCell>
-                  <TableCell className="font-semibold">{formatCurrency(o.total)}</TableCell>
-                  <TableCell><Badge variant="outline">{o.payment_method}</Badge></TableCell>
-                  <TableCell>
-                    <Select value={o.status} onValueChange={(v) => handleStatus(o.id, v)}>
-                      <SelectTrigger className="h-7 text-xs w-28"><SelectValue /></SelectTrigger>
-                      <SelectContent>{ORDER_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
-                    </Select>
-                  </TableCell>
-                  <TableCell className="text-xs text-muted-foreground">{formatDateTime(o.created_at)}</TableCell>
+
+      <Card>
+        <CardContent className="p-0 overflow-x-auto">
+          {orders.length === 0 ? <EmptyState title="No orders" className="py-10" /> : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Receipt</TableHead>
+                  <TableHead>Customer</TableHead>
+                  <TableHead>Total</TableHead>
+                  <TableHead>Payment</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Time</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        )}
-      </CardContent></Card>
+              </TableHeader>
+              <TableBody>
+                {orders.map((o) => (
+                  <TableRow key={o.id}>
+                    <TableCell className="font-mono text-xs">{o.receipt_number}</TableCell>
+                    <TableCell className="text-sm">{o.customer_name}</TableCell>
+                    <TableCell className="font-semibold">{formatCurrency(o.total)}</TableCell>
+                    <TableCell><Badge variant="outline">{o.payment_method}</Badge></TableCell>
+                    <TableCell>
+                      <Select value={o.status} onValueChange={(v) => handleStatus(o.id, v)}>
+                        <SelectTrigger className="h-7 text-xs w-28"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {ORDER_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </TableCell>
+                    <TableCell className="text-xs text-muted-foreground">{formatDateTime(o.created_at)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
@@ -278,10 +391,17 @@ export default function StaffOrdersPage() {
       <Tabs defaultValue="pos">
         <div className="flex items-center justify-between mb-4">
           <h1 className="text-2xl font-bold">Orders</h1>
-          <TabsList><TabsTrigger value="pos">New Order</TabsTrigger><TabsTrigger value="list">Order List</TabsTrigger></TabsList>
+          <TabsList>
+            <TabsTrigger value="pos">New Order</TabsTrigger>
+            <TabsTrigger value="list">Order List</TabsTrigger>
+          </TabsList>
         </div>
-        <TabsContent value="pos"><POSInner categories={categories.filter((category) => category.is_active)} menuItems={items} /></TabsContent>
-        <TabsContent value="list"><OrdersList /></TabsContent>
+        <TabsContent value="pos">
+          <POSInner categories={categories.filter((c) => c.is_active)} menuItems={items} />
+        </TabsContent>
+        <TabsContent value="list">
+          <OrdersList />
+        </TabsContent>
       </Tabs>
     </CartProvider>
   );

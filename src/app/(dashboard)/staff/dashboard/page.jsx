@@ -93,7 +93,7 @@ export default function StaffDashboardPage() {
         </Button>
       </div>
 
-      <div className="grid gap-4 grid-cols-3">
+      <div className="grid gap-4 grid-cols-2 sm:grid-cols-3">
         <StatCard title="Today's Orders" value={loading ? undefined : todayOrders.length} icon={ShoppingBag} color="bg-blue-500" />
         <StatCard title="Pending" value={loading ? undefined : pending} icon={Clock} color="bg-yellow-500" />
         <StatCard title="Completed Today" value={loading ? undefined : completed} icon={CheckCircle} color="bg-green-500" />
@@ -103,7 +103,7 @@ export default function StaffDashboardPage() {
         <CardHeader>
           <CardTitle className="text-base">Active Orders ({active.length})</CardTitle>
         </CardHeader>
-        <CardContent className="p-0">
+        <CardContent className="p-0 overflow-x-auto">
           {loading ? (
             <div className="p-4 space-y-2">
               {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}

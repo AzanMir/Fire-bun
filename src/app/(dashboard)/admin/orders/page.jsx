@@ -17,7 +17,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
   Search, Plus, Minus, Trash2, ShoppingCart, Printer,
-  CreditCard, Banknote, Smartphone, RefreshCw, Eye,
+  CreditCard, Banknote, Smartphone, RefreshCw, Eye, X,
 } from "lucide-react";
 import useMenu from "@/hooks/useMenu";
 import useCategories from "@/hooks/useCategories";
@@ -39,8 +39,8 @@ function Receipt({ order, settings, ref: forwardedRef }) {
       <div className="text-center mb-4">
         {settings?.logo_url && <img src={settings.logo_url} alt="logo" className="h-12 mx-auto mb-2" />}
         <h1 className="text-xl font-bold">{settings?.restaurant_name || "FIRE Restaurant"}</h1>
-        <p className="text-xs text-gray-500">{settings?.address}</p>
-        <p className="text-xs text-gray-500">{settings?.phone}</p>
+        <p className="text-xs text-muted-foreground">{settings?.address}</p>
+        <p className="text-xs text-muted-foreground">{settings?.phone}</p>
       </div>
       <Separator className="my-2" />
       <div className="space-y-1 text-xs">
@@ -67,7 +67,7 @@ function Receipt({ order, settings, ref: forwardedRef }) {
         <div className="flex justify-between font-bold text-sm"><span>TOTAL</span><span>{formatCurrency(order.total)}</span></div>
       </div>
       <Separator className="my-2" />
-      <p className="text-center text-xs text-gray-500 mt-2">Thank you for visiting!</p>
+      <p className="text-center text-xs text-muted-foreground mt-2">Thank you for visiting!</p>
     </div>
   );
 }
@@ -89,6 +89,7 @@ function POSPanel({ categories, menuItems, onOrderPlaced }) {
   const [placing, setPlacing] = useState(false);
   const [receiptOrder, setReceiptOrder] = useState(null);
   const [receiptOpen, setReceiptOpen] = useState(false);
+  const [cartOpen, setCartOpen] = useState(false);
   const receiptRef = useRef(null);
 
   const handlePrint = useReactToPrint({ contentRef: receiptRef });
@@ -123,12 +124,13 @@ function POSPanel({ categories, menuItems, onOrderPlaced }) {
       const fullOrder = { ...order, order_items: cartItems.map((i) => ({ id: i.id, name: i.name, quantity: i.quantity, subtotal: i.price * i.quantity })) };
       setReceiptOrder(fullOrder);
       setReceiptOpen(true);
-        clearCart();
-        setCustomerName("");
-        setPhone("");
-        setPaymentProvider("");
-        setPaymentReference("");
-        setDiscount(0);
+      setCartOpen(false);
+      clearCart();
+      setCustomerName("");
+      setPhone("");
+      setPaymentProvider("");
+      setPaymentReference("");
+      setDiscount(0);
       toast({ title: "Order placed!", description: `Receipt: ${order.receipt_number}`, type: "success" });
       onOrderPlaced?.();
     } catch (e) {
@@ -141,13 +143,36 @@ function POSPanel({ categories, menuItems, onOrderPlaced }) {
   const paymentIcons = { Cash: Banknote, Card: CreditCard, Online: Smartphone };
 
   return (
-    <div className="flex gap-4 h-[calc(100vh-7rem)]">
+    <div className="flex gap-4 h-[calc(100vh-7rem)] relative">
+      {/* ── Mobile cart overlay ────────────────────────────── */}
+      {cartOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/50 lg:hidden"
+          onClick={() => setCartOpen(false)}
+        />
+      )}
+
       {/* Left — Menu Grid */}
       <div className="flex flex-1 flex-col gap-3 min-w-0">
-        {/* Search */}
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-          <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search menu..." className="pl-9" />
+        {/* Search + mobile cart toggle */}
+        <div className="flex gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+            <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search menu..." className="pl-9" />
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            className="lg:hidden shrink-0 relative"
+            onClick={() => setCartOpen(true)}
+          >
+            <ShoppingCart className="size-4" />
+            {totalItems > 0 && (
+              <span className="absolute -top-1.5 -right-1.5 flex size-4 items-center justify-center rounded-full bg-orange-500 text-white text-[10px] font-bold">
+                {totalItems}
+              </span>
+            )}
+          </Button>
         </div>
         {/* Category Tabs */}
         <ScrollArea className="w-full">
@@ -165,7 +190,7 @@ function POSPanel({ categories, menuItems, onOrderPlaced }) {
           {filtered.length === 0 ? (
             <EmptyState title="No items found" />
           ) : (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 pb-2">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-3 pb-2">
               {filtered.map((item) => (
                 <button
                   key={item.id}
@@ -173,9 +198,9 @@ function POSPanel({ categories, menuItems, onOrderPlaced }) {
                   className="flex flex-col items-start rounded-2xl border bg-card p-3 text-left hover:border-orange-300 hover:bg-orange-50 transition-all active:scale-95 focus:outline-none focus:ring-2 focus:ring-orange-400"
                 >
                   {item.image_url ? (
-                    <img src={item.image_url} alt={item.name} className="w-full h-28 object-cover rounded-xl mb-2" />
+                    <img src={item.image_url} alt={item.name} className="w-full h-24 object-cover rounded-xl mb-2" />
                   ) : (
-                    <div className="flex w-full h-28 items-center justify-center rounded-xl bg-muted mb-2">
+                    <div className="flex w-full h-24 items-center justify-center rounded-xl bg-muted mb-2">
                       <span className="text-2xl">🍽️</span>
                     </div>
                   )}
@@ -188,12 +213,19 @@ function POSPanel({ categories, menuItems, onOrderPlaced }) {
         </ScrollArea>
       </div>
 
-      {/* Right — Cart */}
-      <Card className="w-80 shrink-0 flex flex-col h-full overflow-hidden">
+      {/* Right — Cart (fixed slide-over on mobile, static panel on desktop) */}
+      <Card className={`
+        fixed inset-y-0 right-0 z-50 w-80 shrink-0 flex flex-col overflow-hidden transition-transform duration-300 rounded-none
+        lg:static lg:inset-auto lg:z-auto lg:rounded-xl lg:translate-x-0 lg:h-full
+        ${cartOpen ? "translate-x-0" : "translate-x-full"}
+      `}>
         <CardHeader className="pb-3 shrink-0">
           <CardTitle className="flex items-center gap-2 text-base">
             <ShoppingCart className="size-4" /> Cart
             {totalItems > 0 && <Badge className="bg-orange-500 ml-auto">{totalItems}</Badge>}
+            <button onClick={() => setCartOpen(false)} className="ml-auto lg:hidden text-muted-foreground hover:text-foreground">
+              <X className="size-4" />
+            </button>
           </CardTitle>
           <div className="grid grid-cols-2 gap-2 pt-1">
             <Input value={customerName} onChange={(e) => setCustomerName(e.target.value)} placeholder="Customer name" className="text-xs h-7" />
@@ -348,7 +380,7 @@ function OrdersList() {
         <Button variant="outline" size="sm" onClick={refresh}><RefreshCw className="size-4 mr-1" /> Refresh</Button>
       </div>
 
-      <Card><CardContent className="p-0">
+      <Card><CardContent className="p-0 overflow-x-auto">
         {orders.length === 0 ? <EmptyState title="No orders found" /> : (
           <Table>
             <TableHeader>

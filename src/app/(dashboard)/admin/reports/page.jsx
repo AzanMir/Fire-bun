@@ -128,7 +128,7 @@ export default function ReportsPage() {
           {/* Profit Report */}
           {reportType === "profit" && data.revenue !== undefined && (
             <div className="space-y-4">
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                 {[
                   { label: "Revenue", value: data.revenue, color: "text-green-600" },
                   { label: "COGS", value: data.cogs, color: "text-red-500" },
@@ -169,7 +169,7 @@ export default function ReportsPage() {
           {/* Inventory Report */}
           {reportType === "inventory" && data.ingredients && (
             <div className="space-y-4">
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Total Items</p><p className="text-2xl font-bold">{data.ingredients.length}</p></CardContent></Card>
                 <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Low Stock</p><p className="text-2xl font-bold text-red-600">{data.lowStockItems.length}</p></CardContent></Card>
                 <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Inventory Value</p><p className="text-2xl font-bold text-blue-600">{formatCurrency(data.totalValue)}</p></CardContent></Card>
@@ -180,7 +180,7 @@ export default function ReportsPage() {
                   <span>{data.lowStockItems.length} items below minimum stock.</span>
                 </div>
               )}
-              <Card><CardContent className="p-0">
+              <Card><CardContent className="p-0 overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>

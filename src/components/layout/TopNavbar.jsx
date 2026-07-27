@@ -13,7 +13,18 @@ import {
 import { LogOut, UserCircle, Menu } from "lucide-react";
 import Link from "next/link";
 
-export default function TopNavbar({ title, profileHref = "/admin/profile" }) {
+// Try to pull from SidebarContext (admin) first, fall back to MobileSidebarContext (staff)
+function useMobileToggle() {
+  try {
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    const { toggleMobile } = require("@/context/SidebarContext").useSidebar();
+    return toggleMobile;
+  } catch {
+    return null;
+  }
+}
+
+export default function TopNavbar({ title, profileHref = "/admin/profile", onMenuClick }) {
   const { user } = useAuth();
   const router = useRouter();
 
@@ -25,8 +36,18 @@ export default function TopNavbar({ title, profileHref = "/admin/profile" }) {
   const name = user?.user_metadata?.full_name || user?.email || "User";
 
   return (
-    <header className="flex h-16 shrink-0 items-center justify-between border-b bg-background px-6 gap-4">
-      <h2 className="text-lg font-semibold text-foreground truncate">{title}</h2>
+    <header className="flex h-16 shrink-0 items-center justify-between border-b bg-background px-4 sm:px-6 gap-4">
+      <div className="flex items-center gap-3">
+        {/* Hamburger — only shown on mobile */}
+        <button
+          onClick={onMenuClick}
+          className="flex size-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition lg:hidden"
+          aria-label="Open menu"
+        >
+          <Menu className="size-5" />
+        </button>
+        <h2 className="text-lg font-semibold text-foreground truncate">{title}</h2>
+      </div>
 
       <DropdownMenu>
         <DropdownMenuTrigger asChild>

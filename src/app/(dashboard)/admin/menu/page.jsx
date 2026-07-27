@@ -185,7 +185,7 @@ export default function MenuPage() {
       </Card>
 
       <Card>
-        <CardContent className="p-0">
+        <CardContent className="p-0 overflow-x-auto">
           {paged.length === 0 ? (
             <EmptyState title="No menu items found" description="Add your first menu item.">
               <Button onClick={openCreate} variant="outline"><Plus className="size-4 mr-1" /> Add Item</Button>
@@ -264,7 +264,7 @@ export default function MenuPage() {
 
             <TabsContent value="details" className="space-y-4 mt-4">
               <ImageUpload value={editId ? items.find((i) => i.id === editId)?.image_url : null} onChange={setImageFile} />
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="col-span-2 space-y-1.5">
                   <Label>Name *</Label>
                   <Input placeholder="e.g. Chicken Burger" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />

@@ -190,7 +190,7 @@ export default function InventoryPage() {
       </Card>
 
       <Card>
-        <CardContent className="p-0">
+        <CardContent className="p-0 overflow-x-auto">
           {paged.length === 0 ? (
             <EmptyState title="No ingredients found">
               <Button variant="outline" onClick={openCreate}><Plus className="size-4 mr-1" /> Add Ingredient</Button>
@@ -257,7 +257,7 @@ export default function InventoryPage() {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>
           <DialogHeader><DialogTitle>{editId ? "Edit Ingredient" : "New Ingredient"}</DialogTitle></DialogHeader>
-          <div className="grid grid-cols-2 gap-3 py-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 py-2">
             <div className="col-span-2 space-y-1.5"><Label>Name *</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="e.g. Chicken Breast" /></div>
             <div className="space-y-1.5">
               <Label>Unit *</Label>

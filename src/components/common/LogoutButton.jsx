@@ -2,27 +2,21 @@
 
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { LogOut } from "lucide-react";
 
-export default function LogoutButton(){
+export default function LogoutButton() {
+  const router = useRouter();
 
-    const router=useRouter();
+  async function logout() {
+    await supabase.auth.signOut();
+    router.push("/login");
+  }
 
-    async function logout(){
-
-        await supabase.auth.signOut();
-
-        router.push("/login");
-
-    }
-
-    return(
-
-        <button onClick={logout}>
-
-            Logout
-
-        </button>
-
-    )
-
+  return (
+    <Button variant="outline" onClick={logout} className="gap-2">
+      <LogOut className="size-4" />
+      Logout
+    </Button>
+  );
 }

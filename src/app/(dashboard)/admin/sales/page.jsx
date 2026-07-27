@@ -175,7 +175,7 @@ export default function SalesPage() {
         </TabsContent>
 
         <TabsContent value="transactions" className="mt-4">
-          <Card><CardContent className="p-0">
+          <Card><CardContent className="p-0 overflow-x-auto">
             {txLoading ? <Loader /> : transactions.length === 0 ? <EmptyState title="No transactions" /> : (
               <Table>
                 <TableHeader>
