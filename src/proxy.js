@@ -37,6 +37,7 @@ export async function proxy(request) {
   if (
     pathname === "/" ||
     pathname.startsWith("/login") ||
+    pathname.startsWith("/signup") ||
     pathname.startsWith("/forgot-password") ||
     pathname.startsWith("/reset-password") ||
     pathname.startsWith("/_next") ||
@@ -47,6 +48,7 @@ export async function proxy(request) {
     if (
       user &&
       (pathname === "/login" ||
+        pathname === "/signup" ||
         pathname.startsWith("/forgot-password") ||
         pathname.startsWith("/reset-password"))
     ) {

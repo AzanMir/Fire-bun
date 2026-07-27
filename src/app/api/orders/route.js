@@ -1,6 +1,8 @@
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
 import { generateReceiptNumber } from "@/lib/utils";
+import { validateOrderStock } from "@/lib/order-stock";
+import { getPaymentDetailsNote } from "@/lib/payment";
 
 export async function GET(request) {
   const supabase = await createSupabaseServerClient();
@@ -30,7 +32,15 @@ export async function POST(request) {
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await request.json();
-  const { items, customerName, phone, paymentMethod, subtotal, discount, tax, total, notes } = body;
+  const { items, customerName, phone, paymentMethod, paymentDetails, subtotal, discount, tax, total, notes } = body;
+
+  let paymentNote;
+  try {
+    await validateOrderStock(supabase, items);
+    paymentNote = getPaymentDetailsNote(paymentMethod, paymentDetails);
+  } catch (error) {
+    return NextResponse.json({ error: error.message }, { status: 409 });
+  }
 
   const receiptNumber = generateReceiptNumber();
 
@@ -42,7 +52,7 @@ export async function POST(request) {
       phone: phone || "",
       payment_method: paymentMethod,
       subtotal, discount, tax, total,
-      notes: notes || "",
+      notes: [notes, paymentNote].filter(Boolean).join("\n"),
       served_by: user.id,
       status: "Pending",
     })
@@ -62,6 +72,17 @@ export async function POST(request) {
 
   const { error: iErr } = await supabase.from("order_items").insert(orderItems);
   if (iErr) return NextResponse.json({ error: iErr.message }, { status: 400 });
+
+  const { error: stockError } = await supabase.rpc("deduct_inventory_for_order", {
+    p_order_id: order.id,
+  });
+  if (stockError) {
+    await supabase.from("orders").update({ status: "Cancelled" }).eq("id", order.id);
+    return NextResponse.json(
+      { error: `Order could not be placed because inventory could not be deducted: ${stockError.message}` },
+      { status: 409 }
+    );
+  }
 
   return NextResponse.json(order, { status: 201 });
 }

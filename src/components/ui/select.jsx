@@ -67,7 +67,7 @@ function SelectContent({ className, children, position = "popper", ...props }) {
 
 function SelectItem({ className, children, ...props }) {
   return (
-    <SelectPrimitive.Option
+    <SelectPrimitive.Item
       data-slot="select-item"
       className={cn(
         "relative flex min-h-7 w-full cursor-default select-none items-center gap-2 rounded-xl px-2 py-1.5 outline-none focus:bg-accent focus:text-accent-foreground data-disabled:pointer-events-none data-disabled:opacity-50",
@@ -76,12 +76,12 @@ function SelectItem({ className, children, ...props }) {
       {...props}
     >
       <span className="absolute right-2 flex items-center justify-center">
-        <SelectPrimitive.OptionIndicator>
+        <SelectPrimitive.ItemIndicator>
           <CheckIcon className="size-4" />
-        </SelectPrimitive.OptionIndicator>
+        </SelectPrimitive.ItemIndicator>
       </span>
-      <SelectPrimitive.OptionText>{children}</SelectPrimitive.OptionText>
-    </SelectPrimitive.Option>
+      <SelectPrimitive.ItemText>{children}</SelectPrimitive.ItemText>
+    </SelectPrimitive.Item>
   );
 }
 

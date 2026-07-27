@@ -11,39 +11,101 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Deduct inventory when order is completed
+-- Deduct inventory when order is completed. This is deliberately defensive:
+-- the application validates stock before placing/completing an order, and this
+-- function repeats the check while holding ingredient row locks so concurrent
+-- completions cannot oversell the same stock.
 CREATE OR REPLACE FUNCTION deduct_inventory_for_order(p_order_id UUID)
 RETURNS VOID AS $$
 DECLARE
-  v_item RECORD;
-  v_recipe_item RECORD;
+  v_missing_recipes TEXT;
+  v_shortages TEXT;
 BEGIN
-  FOR v_item IN
-    SELECT oi.menu_item_id, oi.quantity
-    FROM order_items oi
-    WHERE oi.order_id = p_order_id
-  LOOP
-    FOR v_recipe_item IN
-      SELECT ri.ingredient_id, ri.quantity
-      FROM recipe_items ri
-      JOIN recipes r ON r.id = ri.recipe_id
-      WHERE r.menu_item_id = v_item.menu_item_id
-    LOOP
-      UPDATE ingredients
-      SET current_stock = current_stock - (v_recipe_item.quantity * v_item.quantity)
-      WHERE id = v_recipe_item.ingredient_id
-        AND current_stock >= (v_recipe_item.quantity * v_item.quantity);
+  -- Do not deduct stock twice if a completed order is saved again.
+  IF EXISTS (
+    SELECT 1 FROM inventory
+    WHERE reference_id = p_order_id AND type = 'usage'
+  ) THEN
+    RETURN;
+  END IF;
 
-      INSERT INTO inventory (ingredient_id, type, quantity, note, reference_id)
-      VALUES (
-        v_recipe_item.ingredient_id,
-        'usage',
-        v_recipe_item.quantity * v_item.quantity,
-        'Order deduction',
-        p_order_id
-      );
-    END LOOP;
-  END LOOP;
+  SELECT string_agg(menu_item.name, ', ')
+  INTO v_missing_recipes
+  FROM order_items order_item
+  JOIN menu_items menu_item ON menu_item.id = order_item.menu_item_id
+  WHERE order_item.order_id = p_order_id
+    AND NOT EXISTS (
+      SELECT 1
+      FROM recipes recipe
+      JOIN recipe_items recipe_item ON recipe_item.recipe_id = recipe.id
+      WHERE recipe.menu_item_id = order_item.menu_item_id
+    );
+
+  IF v_missing_recipes IS NOT NULL THEN
+    RAISE EXCEPTION 'Cannot complete order: missing recipe for %', v_missing_recipes;
+  END IF;
+
+  -- Lock every affected ingredient before comparing stock quantities.
+  PERFORM 1
+  FROM ingredients ingredient
+  WHERE ingredient.id IN (
+    SELECT recipe_item.ingredient_id
+    FROM order_items order_item
+    JOIN recipes recipe ON recipe.menu_item_id = order_item.menu_item_id
+    JOIN recipe_items recipe_item ON recipe_item.recipe_id = recipe.id
+    WHERE order_item.order_id = p_order_id
+  )
+  ORDER BY ingredient.id
+  FOR UPDATE;
+
+  SELECT string_agg(
+    format('%s: need %s %s, have %s %s', name, required, unit, current_stock, unit),
+    '; '
+  )
+  INTO v_shortages
+  FROM (
+    SELECT
+      ingredient.name,
+      ingredient.unit,
+      ingredient.current_stock,
+      SUM(recipe_item.quantity * order_item.quantity) AS required
+    FROM order_items order_item
+    JOIN recipes recipe ON recipe.menu_item_id = order_item.menu_item_id
+    JOIN recipe_items recipe_item ON recipe_item.recipe_id = recipe.id
+    JOIN ingredients ingredient ON ingredient.id = recipe_item.ingredient_id
+    WHERE order_item.order_id = p_order_id
+    GROUP BY ingredient.id, ingredient.name, ingredient.unit, ingredient.current_stock
+    HAVING ingredient.current_stock < SUM(recipe_item.quantity * order_item.quantity)
+  ) shortages;
+
+  IF v_shortages IS NOT NULL THEN
+    RAISE EXCEPTION 'Insufficient inventory: %', v_shortages;
+  END IF;
+
+  UPDATE ingredients ingredient
+  SET current_stock = ingredient.current_stock - required.required
+  FROM (
+    SELECT recipe_item.ingredient_id, SUM(recipe_item.quantity * order_item.quantity) AS required
+    FROM order_items order_item
+    JOIN recipes recipe ON recipe.menu_item_id = order_item.menu_item_id
+    JOIN recipe_items recipe_item ON recipe_item.recipe_id = recipe.id
+    WHERE order_item.order_id = p_order_id
+    GROUP BY recipe_item.ingredient_id
+  ) required
+  WHERE ingredient.id = required.ingredient_id;
+
+  INSERT INTO inventory (ingredient_id, type, quantity, note, reference_id)
+  SELECT
+    recipe_item.ingredient_id,
+    'usage',
+    SUM(recipe_item.quantity * order_item.quantity),
+    'Order deduction',
+    p_order_id
+  FROM order_items order_item
+  JOIN recipes recipe ON recipe.menu_item_id = order_item.menu_item_id
+  JOIN recipe_items recipe_item ON recipe_item.recipe_id = recipe.id
+  WHERE order_item.order_id = p_order_id
+  GROUP BY recipe_item.ingredient_id;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 

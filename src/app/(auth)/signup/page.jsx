@@ -12,6 +12,8 @@ import { Eye, EyeOff, Flame, ArrowLeft, CheckCircle } from "lucide-react";
 import Link from "next/link";
 import Spinner from "@/components/common/Spinner";
 
+const DUPLICATE = "Account Already Exists";
+
 export default function SignUpPage() {
   const router = useRouter();
   const [fullName, setFullName] = useState("");
@@ -32,32 +34,51 @@ export default function SignUpPage() {
       return;
     }
 
+    const normalizedEmail = email.trim().toLowerCase();
+
     setLoading(true);
 
-    const { error: signUpError, data } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          full_name: fullName,
-          role: "staff",
-        },
-      },
-    });
+    try {
+      const res = await fetch("/api/auth/check-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: normalizedEmail }),
+      });
 
-    setLoading(false);
+      const body = await res.json().catch(() => null);
+      if (body?.exists) {
+        setError(DUPLICATE);
+        return;
+      }
 
-    if (signUpError) {
-      setError(signUpError.message);
-      return;
+      const { data, error: signUpError } = await supabase.auth.signUp(
+        { email: normalizedEmail, password },
+        { data: { full_name: fullName, role: "staff" } }
+      );
+
+      if (signUpError) {
+        const msg = signUpError.message ?? "";
+        setError(/already|registered|not allowed/i.test(msg) ? DUPLICATE : msg);
+        return;
+      }
+
+      if (data?.user && !data.user.identities?.length) {
+        setError(DUPLICATE);
+        return;
+      }
+
+      if (data?.session) {
+        router.push("/staff/dashboard");
+        return;
+      }
+
+      setSuccess(true);
+    } catch (err) {
+      console.error("signup error", err);
+      setError("Something went wrong. Please try again.");
+    } finally {
+      setLoading(false);
     }
-
-    if (data?.session) {
-      router.push("/staff/dashboard");
-      return;
-    }
-
-    setSuccess(true);
   }
 
   return (

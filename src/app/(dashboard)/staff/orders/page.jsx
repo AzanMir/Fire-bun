@@ -76,6 +76,8 @@ function POSInner({ categories, menuItems, onDone }) {
   const [customerName, setCustomerName] = useState("");
   const [phone, setPhone] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("Cash");
+  const [paymentProvider, setPaymentProvider] = useState("");
+  const [paymentReference, setPaymentReference] = useState("");
   const [placing, setPlacing] = useState(false);
   const [receiptOrder, setReceiptOrder] = useState(null);
   const [receiptOpen, setReceiptOpen] = useState(false);
@@ -98,11 +100,11 @@ function POSInner({ categories, menuItems, onDone }) {
     if (!cart.length) { toast({ title: "Cart is empty", type: "error" }); return; }
     setPlacing(true);
     try {
-      const order = await createOrder({ customerName, phone, paymentMethod, items: cart, subtotal, discount: discountAmt, tax: taxAmt, total, servedBy: user?.id });
+      const order = await createOrder({ customerName, phone, paymentMethod, paymentDetails: { provider: paymentProvider, reference: paymentReference }, items: cart, subtotal, discount: discountAmt, tax: taxAmt, total, servedBy: user?.id });
       const fullOrder = { ...order, order_items: cart.map((i) => ({ name: i.name, quantity: i.quantity, subtotal: i.price * i.quantity })) };
       setReceiptOrder(fullOrder);
       setReceiptOpen(true);
-      clearCart(); setCustomerName(""); setPhone(""); setDiscount(0);
+      clearCart(); setCustomerName(""); setPhone(""); setPaymentProvider(""); setPaymentReference(""); setDiscount(0);
       toast({ title: "Order placed!", description: order.receipt_number, type: "success" });
       onDone?.();
     } catch (e) {
@@ -192,6 +194,16 @@ function POSInner({ categories, menuItems, onDone }) {
               </button>
             ); })}
           </div>
+          {paymentMethod !== "Cash" && (
+            <div className="space-y-2 rounded-xl border border-orange-200 bg-orange-50/60 p-2.5">
+              <p className="text-xs font-medium text-orange-800">
+                {paymentMethod === "Card" ? "Card verification" : "Online payment verification"}
+              </p>
+              <Input value={paymentProvider} onChange={(e) => setPaymentProvider(e.target.value)} placeholder={paymentMethod === "Card" ? "Cardholder name" : "Bank or wallet (e.g. JazzCash)"} />
+              <Input value={paymentReference} onChange={(e) => setPaymentReference(e.target.value)} placeholder={paymentMethod === "Card" ? "Last 4 card digits" : "Transaction reference"} inputMode={paymentMethod === "Card" ? "numeric" : "text"} maxLength={paymentMethod === "Card" ? 4 : undefined} />
+              {paymentMethod === "Card" && <p className="text-[11px] text-muted-foreground">Only the last four card digits are stored.</p>}
+            </div>
+          )}
           <Button onClick={place} disabled={placing || !cart.length} className="w-full bg-orange-500 hover:bg-orange-600 text-sm h-8">
             {placing ? "Placing..." : `Place · ${formatCurrency(total)}`}
           </Button>

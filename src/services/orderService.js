@@ -1,5 +1,7 @@
 import { supabase } from "@/lib/supabase";
 import { generateReceiptNumber } from "@/lib/utils";
+import { validateOrderStock } from "@/lib/order-stock";
+import { getPaymentDetailsNote } from "@/lib/payment";
 
 export async function getOrders({ status, search, page = 1, limit = 20 } = {}) {
   let query = supabase
@@ -28,7 +30,10 @@ export async function getOrder(id) {
   return data;
 }
 
-export async function createOrder({ customerName, phone, paymentMethod, items, subtotal, discount, tax, total, notes, servedBy }) {
+export async function createOrder({ customerName, phone, paymentMethod, paymentDetails, items, subtotal, discount, tax, total, notes, servedBy }) {
+  await validateOrderStock(supabase, items);
+  const paymentNote = getPaymentDetailsNote(paymentMethod, paymentDetails);
+
   const receiptNumber = generateReceiptNumber();
 
   const { data: order, error: oErr } = await supabase
@@ -42,7 +47,7 @@ export async function createOrder({ customerName, phone, paymentMethod, items, s
       discount,
       tax,
       total,
-      notes: notes || "",
+      notes: [notes, paymentNote].filter(Boolean).join("\n"),
       served_by: servedBy || null,
       status: "Pending",
     })
@@ -63,10 +68,30 @@ export async function createOrder({ customerName, phone, paymentMethod, items, s
   const { error: iErr } = await supabase.from("order_items").insert(orderItems);
   if (iErr) throw iErr;
 
+  const { error: stockError } = await supabase.rpc("deduct_inventory_for_order", {
+    p_order_id: order.id,
+  });
+  if (stockError) {
+    await supabase.from("orders").update({ status: "Cancelled" }).eq("id", order.id);
+    throw new Error(`Order could not be placed because inventory could not be deducted: ${stockError.message}`);
+  }
+
   return order;
 }
 
 export async function updateOrderStatus(id, status) {
+  const existingOrder = status === "Completed" ? await getOrder(id) : null;
+  if (existingOrder && existingOrder.status !== "Completed") {
+    await validateOrderStock(
+      supabase,
+      existingOrder.order_items.map((item) => ({
+        id: item.menu_item_id,
+        name: item.name,
+        quantity: item.quantity,
+      }))
+    );
+  }
+
   const { data, error } = await supabase
     .from("orders")
     .update({ status })
@@ -75,10 +100,11 @@ export async function updateOrderStatus(id, status) {
     .single();
   if (error) throw error;
 
-  // Auto deduct inventory and record sale on completion
-  if (status === "Completed") {
-    await supabase.rpc("deduct_inventory_for_order", { p_order_id: id });
-    await supabase.rpc("record_sale_for_order", { p_order_id: id });
+  // Record the sale only after an order is completed. Stock is reserved when
+  // the order is placed, preventing later orders from overselling it.
+  if (status === "Completed" && existingOrder?.status !== "Completed") {
+    const { error: saleError } = await supabase.rpc("record_sale_for_order", { p_order_id: id });
+    if (saleError) throw saleError;
   }
 
   return data;
