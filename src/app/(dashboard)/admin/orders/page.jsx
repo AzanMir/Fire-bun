@@ -429,7 +429,7 @@ export default function OrdersPage() {
             </TabsList>
           </div>
           <TabsContent value="pos">
-            <POSPanel categories={categories} menuItems={menuItems} />
+            <POSPanel categories={categories.filter((category) => category.is_active)} menuItems={menuItems} />
           </TabsContent>
           <TabsContent value="list">
             <OrdersList />

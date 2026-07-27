@@ -280,7 +280,7 @@ export default function StaffOrdersPage() {
           <h1 className="text-2xl font-bold">Orders</h1>
           <TabsList><TabsTrigger value="pos">New Order</TabsTrigger><TabsTrigger value="list">Order List</TabsTrigger></TabsList>
         </div>
-        <TabsContent value="pos"><POSInner categories={categories} menuItems={items} /></TabsContent>
+        <TabsContent value="pos"><POSInner categories={categories.filter((category) => category.is_active)} menuItems={items} /></TabsContent>
         <TabsContent value="list"><OrdersList /></TabsContent>
       </Tabs>
     </CartProvider>
